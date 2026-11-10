@@ -20,3 +20,14 @@ data/*.db-shm
 data/*.db-wal
 /distilbert_emotion/model.safetensors
 /distilbert_emotion/emotion_sentimen_dataset.csv
+# Temporary deployment and conversion files
+/onnx-conversion/
+/zip-test/
+/hf-model-upload/
+/edubuddy-ml-deploy/
+/edubuddy-ml-deploy.zip
+
+# Backup files
+*.backup
+*.pytorch-backup
+*.onnx-backup

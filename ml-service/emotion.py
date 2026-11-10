@@ -1,97 +1,194 @@
-"""DistilBERT text-emotion classifier (loads the fine-tuned model in
-../distilbert_emotion). Maps the model's LABEL_0..12 outputs to real emotion
-names via models/emotion_labels.json (built by calibrate_emotion.py)."""
+
+"""EduBuddy emotion classifier using the fine-tuned DistilBERT ONNX INT8 model."""
+
 import json
 import numpy as np
+import onnxruntime as ort
+from transformers import AutoTokenizer
 
 import config
 
 _tokenizer = None
-_model = None
-_torch = None
+_session = None
 _id2label = None
 
 
 def _label_map():
     global _id2label
+
     if _id2label is not None:
         return _id2label
+
     if config.EMOTION_LABELS.exists():
-        raw = json.loads(config.EMOTION_LABELS.read_text())
+        raw = json.loads(config.EMOTION_LABELS.read_text(encoding="utf-8"))
         _id2label = {int(k): v for k, v in raw.items()}
     else:
-        _id2label = {i: name for i, name in enumerate(config.FALLBACK_EMOTION_ORDER)}
+        _id2label = {
+            i: name
+            for i, name in enumerate(config.FALLBACK_EMOTION_ORDER)
+        }
+
     return _id2label
 
 
-def _load():
-    global _tokenizer, _model, _torch
-    if _model is not None:
-        return
+def _model_dir():
+    return config.MODELS_DIR / "emotion_onnx"
 
-    import torch
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
-    _torch = torch
-
-    # Use Hugging Face in production, or the local model during development.
-    source = config.HF_MODEL_ID if config.HF_MODEL_ID else str(config.DISTILBERT_DIR)
-    load_kwargs = {"token": config.HF_TOKEN} if config.HF_TOKEN else {}
-
-    _tokenizer = AutoTokenizer.from_pretrained(source, **load_kwargs)
-    _model = AutoModelForSequenceClassification.from_pretrained(source, **load_kwargs)
-    _model.eval()
 
 def is_ready() -> bool:
-    if config.HF_MODEL_ID and config.HF_TOKEN:
-        return True
-    return (config.DISTILBERT_DIR / "model.safetensors").exists()
+    model_dir = _model_dir()
+
+    required_files = [
+        model_dir / "model_int8.onnx",
+        model_dir / "tokenizer.json",
+        model_dir / "tokenizer_config.json",
+        model_dir / "config.json",
+    ]
+
+    return all(path.exists() for path in required_files)
+
+
+def _load():
+    global _tokenizer, _session
+
+    if _session is not None:
+        return
+
+    print("EMOTION: Starting model loading...", flush=True)
+
+    if not is_ready():
+        raise RuntimeError(
+            "ONNX emotion model files are missing from models/emotion_onnx."
+        )
+
+    model_dir = _model_dir()
+
+    print("EMOTION: Loading tokenizer...", flush=True)
+
+    _tokenizer = AutoTokenizer.from_pretrained(
+        str(model_dir),
+        local_files_only=True,
+    )
+
+    print("EMOTION: Tokenizer loaded.", flush=True)
+
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = 1
+    options.inter_op_num_threads = 1
+
+    print("EMOTION: Creating ONNX session...", flush=True)
+
+    _session = ort.InferenceSession(
+        str(model_dir / "model_int8.onnx"),
+        sess_options=options,
+        providers=["CPUExecutionProvider"],
+    )
+
+    print("EMOTION: ONNX session loaded successfully!", flush=True)
+
 
 def _predict_probs(text: str) -> np.ndarray:
     _load()
-    inputs = _tokenizer(text, return_tensors="pt", truncation=True, max_length=256)
-    with _torch.no_grad():
-        logits = _model(**inputs).logits
-    return _torch.softmax(logits, dim=-1)[0].cpu().numpy()
+
+    inputs = _tokenizer(
+        text,
+        return_tensors="np",
+        truncation=True,
+        max_length=256,
+    )
+
+    feed = {
+        "input_ids": inputs["input_ids"].astype(np.int64),
+        "attention_mask": inputs["attention_mask"].astype(np.int64),
+    }
+
+    logits = _session.run(["logits"], feed)[0][0]
+
+    # Numerically stable softmax
+    logits = logits - np.max(logits)
+    exp = np.exp(logits)
+
+    return exp / np.sum(exp)
 
 
 def classify(text: str) -> dict:
-    """Classify a single text blob -> dominant emotion + severity."""
+    """Classify a single text blob into a dominant emotion and severity."""
+
     text = (text or "").strip()
+
     if not text:
-        return {"emotion": "neutral", "score": 0.0, "severity": "info", "scores": {}}
+        return {
+            "emotion": "neutral",
+            "score": 0.0,
+            "severity": "info",
+            "scores": {},
+        }
 
     probs = _predict_probs(text)
     labels = _label_map()
+
     top = int(np.argmax(probs))
     emotion = labels.get(top, f"LABEL_{top}")
     score = float(probs[top])
-    severity = "concern" if emotion in config.NEGATIVE_EMOTIONS else "info"
-    scores = {labels.get(i, f"LABEL_{i}"): round(float(p), 4) for i, p in enumerate(probs)}
-    return {"emotion": emotion, "score": round(score, 4), "severity": severity, "scores": scores}
+
+    severity = (
+        "concern"
+        if emotion in config.NEGATIVE_EMOTIONS
+        else "info"
+    )
+
+    scores = {
+        labels.get(i, f"LABEL_{i}"): round(float(p), 4)
+        for i, p in enumerate(probs)
+    }
+
+    return {
+        "emotion": emotion,
+        "score": round(score, 4),
+        "severity": severity,
+        "scores": scores,
+    }
 
 
-def classify_conversation(messages: list[str], threshold: float = 0.5) -> dict:
-    """Aggregate emotion across a student's messages using a *max-concern* rule.
+def classify_conversation(
+    messages: list[str],
+    threshold: float = 0.5,
+) -> dict:
+    """Aggregate student emotions using the existing max-concern rule."""
 
-    This fine-tuned model is heavily neutral-biased, so averaging drowns out a
-    single distress signal. For a wellbeing feature we instead surface the
-    strongest concerning message: if any message clearly reads as a negative
-    emotion we flag the whole conversation as that emotion (and keep the
-    triggering message as evidence for the teacher). Otherwise we report the
-    strongest non-neutral emotion, falling back to neutral."""
-    texts = [m for m in (messages or []) if m and m.strip()]
+    texts = [
+        m.strip()
+        for m in (messages or [])
+        if m and m.strip()
+    ]
+
     if not texts:
-        return {"emotion": "neutral", "score": 0.0, "severity": "info", "scores": {}, "evidence": None}
+        return {
+            "emotion": "neutral",
+            "score": 0.0,
+            "severity": "info",
+            "scores": {},
+            "evidence": None,
+        }
 
     labels = _label_map()
-    per = []  # (emotion, score, text, probs)
+    per = []
     mean = None
-    for t in texts:
-        p = _predict_probs(t)
-        mean = p if mean is None else mean + p
-        top = int(np.argmax(p))
-        per.append((labels.get(top, f"LABEL_{top}"), float(p[top]), t, p))
+
+    for text in texts:
+        probs = _predict_probs(text)
+
+        mean = probs.copy() if mean is None else mean + probs
+
+        top = int(np.argmax(probs))
+
+        per.append((
+            labels.get(top, f"LABEL_{top}"),
+            float(probs[top]),
+            text,
+            probs,
+        ))
+
     mean = mean / len(texts)
 
     def pack(emotion, score, text, probs, severity):
@@ -99,21 +196,43 @@ def classify_conversation(messages: list[str], threshold: float = 0.5) -> dict:
             "emotion": emotion,
             "score": round(float(score), 4),
             "severity": severity,
-            "scores": {labels.get(i, f"LABEL_{i}"): round(float(v), 4) for i, v in enumerate(probs)},
+            "scores": {
+                labels.get(i, f"LABEL_{i}"): round(float(v), 4)
+                for i, v in enumerate(probs)
+            },
             "evidence": text,
         }
 
-    concerns = [x for x in per if x[0] in config.NEGATIVE_EMOTIONS and x[1] >= threshold]
-    if concerns:
-        concerns.sort(key=lambda x: x[1], reverse=True)
-        e, s, t, p = concerns[0]
-        return pack(e, s, t, p, "concern")
+    concerns = [
+        item for item in per
+        if item[0] in config.NEGATIVE_EMOTIONS
+        and item[1] >= threshold
+    ]
 
-    strong = [x for x in per if x[0] != "neutral" and x[1] >= threshold]
+    if concerns:
+        concerns.sort(key=lambda item: item[1], reverse=True)
+        emotion, score, text, probs = concerns[0]
+
+        return pack(emotion, score, text, probs, "concern")
+
+    strong = [
+        item for item in per
+        if item[0] != "neutral"
+        and item[1] >= threshold
+    ]
+
     if strong:
-        strong.sort(key=lambda x: x[1], reverse=True)
-        e, s, t, p = strong[0]
-        return pack(e, s, t, p, "info")
+        strong.sort(key=lambda item: item[1], reverse=True)
+        emotion, score, text, probs = strong[0]
+
+        return pack(emotion, score, text, probs, "info")
 
     top = int(np.argmax(mean))
-    return pack(labels.get(top, f"LABEL_{top}"), float(mean[top]), None, mean, "info")
+
+    return pack(
+        labels.get(top, f"LABEL_{top}"),
+        float(mean[top]),
+        None,
+        mean,
+        "info",
+    )
