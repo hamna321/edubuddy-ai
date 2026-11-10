@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robo</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+    #robotCanvas { width: 100%; height: 100vh; cursor: grab; }
+    #robotCanvas:active { cursor: grabbing; }
+  </style>
+</head>
+<body>
+  <div id="robotCanvas"></div>
+  <script src="/robot/three.min.js"></script>
+  <script src="/robot/robot.js"></script>
+  <script>
+    // Bridge: the parent React app drives the robot via postMessage.
+    //   { robot: { action: "set"|"wave"|"react", state } }
+    window.addEventListener("message", (e) => {
+      const msg = e.data && e.data.robot;
+      if (!msg || !window.Robot) return;
+      if (msg.action === "set") window.Robot.set(msg.state);
+      else if (msg.action === "wave") window.Robot.wave();
+      else if (msg.action === "react") window.Robot.react("poke");
+    });
+    // Tell the parent we're ready so it can push the initial state.
+    // (No auto-wave — the robot rests with both arms down.)
+    function announce() {
+      if (window.Robot) {
+        parent.postMessage({ roboReady: true }, "*");
+      } else {
+        setTimeout(announce, 100);
+      }
+    }
+    announce();
+  </script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{
+  "features": [
+    "Age",
+    "Gender",
+    "Ethnicity",
+    "ParentalEducation",
+    "StudyTimeWeekly",
+    "Absences",
+    "Tutoring",
+    "ParentalSupport",
+    "Extracurricular",
+    "Sports",
+    "Music",
+    "Volunteering"
+  ],
+  "labels": {
+    "0": "A",
+    "1": "B",
+    "2": "C",
+    "3": "D",
+    "4": "F"
+  },
+  "accuracy": 0.6868475991649269,
+  "n_rows": 2392,
+  "importances": {
+    "Age": 0.05231020599603653,
+    "Gender": 0.05529189109802246,
+    "Ethnicity": 0.05550410598516464,
+    "ParentalEducation": 0.05450763180851936,
+    "StudyTimeWeekly": 0.07102935016155243,
+    "Absences": 0.2534210681915283,
+    "Tutoring": 0.09948401153087616,
+    "ParentalSupport": 0.09141401946544647,
+    "Extracurricular": 0.0730573907494545,
+    "Sports": 0.0696844682097435,
+    "Music": 0.06468340754508972,
+    "Volunteering": 0.059612374752759933
+  }
+}
