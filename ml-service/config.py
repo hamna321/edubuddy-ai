@@ -20,6 +20,8 @@ EMOTION_LABELS = MODELS_DIR / "emotion_labels.json"
 # Optional shared secret (must match the web app's ML_SERVICE_KEY). Empty = open.
 API_KEY = os.environ.get("ML_SERVICE_KEY", "")
 PORT = int(os.environ.get("ML_PORT", "5000"))
+HF_MODEL_ID = os.environ.get("HF_MODEL_ID", "")
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
 # Feature order the grade model expects (mirrors web/src/lib/gradeSchema.js).
 GRADE_FEATURES = [

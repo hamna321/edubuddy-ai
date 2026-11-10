@@ -28,18 +28,24 @@ def _load():
     global _tokenizer, _model, _torch
     if _model is not None:
         return
+
     import torch
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
     _torch = torch
-    _tokenizer = AutoTokenizer.from_pretrained(str(config.DISTILBERT_DIR))
-    _model = AutoModelForSequenceClassification.from_pretrained(str(config.DISTILBERT_DIR))
+
+    # Use Hugging Face in production, or the local model during development.
+    source = config.HF_MODEL_ID if config.HF_MODEL_ID else str(config.DISTILBERT_DIR)
+    load_kwargs = {"token": config.HF_TOKEN} if config.HF_TOKEN else {}
+
+    _tokenizer = AutoTokenizer.from_pretrained(source, **load_kwargs)
+    _model = AutoModelForSequenceClassification.from_pretrained(source, **load_kwargs)
     _model.eval()
 
-
 def is_ready() -> bool:
+    if config.HF_MODEL_ID and config.HF_TOKEN:
+        return True
     return (config.DISTILBERT_DIR / "model.safetensors").exists()
-
 
 def _predict_probs(text: str) -> np.ndarray:
     _load()

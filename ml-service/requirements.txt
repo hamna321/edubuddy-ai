@@ -1,6 +1,9 @@
+
 fastapi
 uvicorn[standard]
-transformers
+transformers>=5.14,<6
+huggingface_hub>=1.5,<2.0
+tokenizers>=0.22,<0.23
 torch
 xgboost
 scikit-learn

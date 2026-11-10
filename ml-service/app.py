@@ -8,6 +8,9 @@ Endpoints:
 
 Run:  python app.py       (or: uvicorn app:app --port 5000)
 """
+
+import os 
+
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -18,13 +21,26 @@ import grade
 import emotion
 
 app = FastAPI(title="EduBuddy ML Service", version="1.0")
+
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+frontend_origins = os.environ.get("FRONTEND_ORIGIN", "")
+if frontend_origins:
+    allowed_origins.extend(
+        origin.strip()
+        for origin in frontend_origins.split(",")
+        if origin.strip()
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 def check_key(x_api_key: Optional[str]):
     if config.API_KEY and x_api_key != config.API_KEY:
