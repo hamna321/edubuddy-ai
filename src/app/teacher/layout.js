@@ -9,8 +9,8 @@ const NAV = [
   { href: "/teacher/alerts", label: "Wellbeing Alerts", icon: "💛" },
 ];
 
-export default function TeacherLayout({ children }) {
-  const user = currentUser();
+export default async function TeacherLayout({ children }) {
+  const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "teacher") redirect("/" + user.role);
   return (

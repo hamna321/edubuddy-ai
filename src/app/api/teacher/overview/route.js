@@ -1,3 +1,4 @@
+
 import { requireRole } from "@/lib/auth.js";
 import { ok, handler } from "@/lib/http.js";
 import {
@@ -12,10 +13,18 @@ export const dynamic = "force-dynamic";
 
 export const GET = handler(async () => {
   const s = requireRole("teacher");
+
+  const [subjects, classes, students, alerts] = await Promise.all([
+    subjectsForTeacher(s.id),
+    classesForTeacher(s.id),
+    studentsForTeacher(s.id),
+    unackConcernCountForTeacher(s.id),
+  ]);
+
   return ok({
-    subjects: subjectsForTeacher(s.id),
-    classes: classesForTeacher(s.id),
-    studentCount: studentsForTeacher(s.id).length,
-    alerts: unackConcernCountForTeacher(s.id),
+    subjects,
+    classes,
+    studentCount: students.length,
+    alerts,
   });
 });

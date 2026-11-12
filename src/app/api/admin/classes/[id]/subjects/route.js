@@ -7,7 +7,14 @@ export const dynamic = "force-dynamic";
 
 export const POST = handler(async (req, { params }) => {
   requireRole("admin");
+
   const { name, teacher_id } = await req.json().catch(() => ({}));
-  if (!name || !name.trim()) return fail("Subject name is required.");
-  return ok({ subject: addSubject(Number(params.id), name, teacher_id) });
+
+  if (!name || !name.trim()) {
+    return fail("Subject name is required.");
+  }
+
+  const subject = await addSubject(Number(params.id), name, teacher_id);
+
+  return ok({ subject });
 });

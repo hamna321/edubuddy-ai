@@ -8,7 +8,7 @@ export const POST = handler(async (req) => {
   const { email, password } = await req.json().catch(() => ({}));
   if (!email || !password) return fail("Email and password are required.");
 
-  const user = authenticate(email, password);
+  const user = await authenticate(email, password);
   if (!user) return fail("Invalid email or password.", 401);
 
   setSessionCookie(signToken(user));

@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth.js";
+﻿import { requireRole } from "@/lib/auth.js";
 import { ok, fail, handler } from "@/lib/http.js";
 import {
   getClassDetail,
@@ -12,18 +12,26 @@ export const dynamic = "force-dynamic";
 
 export const GET = handler(async (_req, { params }) => {
   requireRole("admin");
+
   const id = Number(params.id);
-  const detail = getClassDetail(id);
+  const detail = await getClassDetail(id);
+
   if (!detail) return fail("Class not found", 404);
+
+  const [teachers, availableStudents] = await Promise.all([
+    listByRole("teacher"),
+    studentsNotEnrolled(id),
+  ]);
+
   return ok({
     detail,
-    teachers: listByRole("teacher"),
-    availableStudents: studentsNotEnrolled(id),
+    teachers,
+    availableStudents,
   });
 });
 
 export const DELETE = handler(async (_req, { params }) => {
   requireRole("admin");
-  deleteClass(Number(params.id));
+  await deleteClass(Number(params.id));
   return ok();
 });

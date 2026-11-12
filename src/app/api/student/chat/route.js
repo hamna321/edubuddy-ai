@@ -25,12 +25,12 @@ export const POST = handler(async (req) => {
   const subjectId = Number(subject_id);
   if (!subjectId) return fail("Pick a subject first.");
   if (!Array.isArray(messages) || messages.length === 0) return fail("No messages provided.");
-  if (!studentCanAccessSubject(s.id, subjectId))
+  if (!(await studentCanAccessSubject(s.id, subjectId)))
     return fail("You're not enrolled in this subject.", 403);
 
   const noteIds = Array.isArray(note_ids) && note_ids.length ? note_ids.map(Number) : null;
 
-  const subject = getSubjectFull(subjectId);
+  const subject = await getSubjectFull(subjectId);
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   const query = lastUser?.text || "";
 
@@ -46,7 +46,7 @@ export const POST = handler(async (req) => {
     noteWarning = e.message;
   }
 
-  const grade = getGrade(s.id);
+  const grade = await getGrade(s.id);
   const gc = grade?.predicted_gradeclass ?? null;
 
   const system = `You are "Robo", a friendly, patient study tutor helping ${s.name} with ${subject.name} (${subject.class_name}).

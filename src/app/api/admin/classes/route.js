@@ -7,12 +7,18 @@ export const dynamic = "force-dynamic";
 
 export const GET = handler(async () => {
   requireRole("admin");
-  return ok({ classes: listClasses() });
+  const classes = await listClasses();
+  return ok({ classes });
 });
 
 export const POST = handler(async (req) => {
   requireRole("admin");
   const { name } = await req.json().catch(() => ({}));
-  if (!name || !name.trim()) return fail("Class name is required.");
-  return ok({ class: createClass(name) });
+
+  if (!name || !name.trim()) {
+    return fail("Class name is required.");
+  }
+
+  const newClass = await createClass(name);
+  return ok({ class: newClass });
 });

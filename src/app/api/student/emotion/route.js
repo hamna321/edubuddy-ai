@@ -19,8 +19,8 @@ export const POST = handler(async (req) => {
   let subjectId = body.subject_id ? Number(body.subject_id) : null;
   let classId = null;
   if (subjectId) {
-    if (!studentCanAccessSubject(s.id, subjectId)) subjectId = null;
-    else classId = getSubjectFull(subjectId)?.class_id ?? null;
+    if (!(await studentCanAccessSubject(s.id, subjectId))) subjectId = null;
+    else classId = (await getSubjectFull(subjectId))?.class_id ?? null;
   }
 
   // --- Camera path: face-api detected the expression client-side -----------
@@ -30,7 +30,7 @@ export const POST = handler(async (req) => {
     const severity = CV_NEGATIVE.has(emotion) ? "concern" : "info";
     let report = null;
     if (severity === "concern") {
-      report = createEmotionReport({
+      report = await createEmotionReport({
         studentId: s.id, classId, subjectId, source: "camera",
         emotion, score, severity,
         detail: "Detected via camera during an emotional-support session.",
@@ -51,7 +51,7 @@ export const POST = handler(async (req) => {
     if (severity === "concern") {
       const snippet = (result.evidence ? `"${result.evidence}"\n\n` : "") +
         "From: " + messages.slice(-6).join(" · ");
-      report = createEmotionReport({
+      report = await createEmotionReport({
         studentId: s.id, classId, subjectId, source,
         emotion: result.emotion, score: result.score, severity,
         detail: snippet.slice(0, 600),

@@ -7,5 +7,5 @@ export const dynamic = "force-dynamic";
 
 export const GET = handler(async () => {
   const s = requireRole("student");
-  return ok({ subjects: subjectsForStudent(s.id) });
+  return ok({ subjects: await subjectsForStudent(s.id) });
 });

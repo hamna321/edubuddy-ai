@@ -7,15 +7,22 @@ export const dynamic = "force-dynamic";
 
 export const PATCH = handler(async (req, { params }) => {
   requireRole("admin");
+
   const body = await req.json().catch(() => ({}));
   const patch = {};
+
   if (body.name !== undefined) patch.name = body.name;
   if (body.teacher_id !== undefined) patch.teacherId = body.teacher_id;
-  return ok({ subject: updateSubject(Number(params.id), patch) });
+
+  const subject = await updateSubject(Number(params.id), patch);
+
+  return ok({ subject });
 });
 
 export const DELETE = handler(async (_req, { params }) => {
   requireRole("admin");
-  deleteSubject(Number(params.id));
+
+  await deleteSubject(Number(params.id));
+
   return ok();
 });

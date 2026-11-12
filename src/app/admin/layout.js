@@ -11,8 +11,8 @@ const NAV = [
   { href: "/admin/classes", label: "Classes", icon: "🏫" },
 ];
 
-export default function AdminLayout({ children }) {
-  const user = currentUser();
+export default async function AdminLayout({ children }) {
+  const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "admin") redirect("/" + user.role);
   return (

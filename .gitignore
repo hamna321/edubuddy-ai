@@ -31,3 +31,5 @@ data/*.db-wal
 *.backup
 *.pytorch-backup
 *.onnx-backup
+
+edubuddy-data-backup/

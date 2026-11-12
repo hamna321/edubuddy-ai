@@ -10,8 +10,8 @@ const NAV = [
   { href: "/student/emotional", label: "Emotional Support", icon: "💛" },
 ];
 
-export default function StudentLayout({ children }) {
-  const user = currentUser();
+export default async function  StudentLayout({ children }) {
+  const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "student") redirect("/" + user.role);
   return (

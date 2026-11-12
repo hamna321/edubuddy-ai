@@ -7,23 +7,38 @@ export const dynamic = "force-dynamic";
 
 export const GET = handler(async (req) => {
   requireRole("admin");
+
   const role = new URL(req.url).searchParams.get("role");
-  if (!["teacher", "student"].includes(role))
+
+  if (!["teacher", "student"].includes(role)) {
     return fail("role must be teacher or student");
-  return ok({ users: listByRole(role) });
+  }
+
+  const users = await listByRole(role);
+  return ok({ users });
 });
 
 export const POST = handler(async (req) => {
   requireRole("admin");
-  const { name, email, password, role } = await req.json().catch(() => ({}));
-  if (!name || !email) return fail("Name and email are required.");
-  if (!["teacher", "student"].includes(role))
-    return fail("role must be teacher or student");
 
-  // If no password supplied, generate a shareable temporary one.
+  const { name, email, password, role } = await req.json().catch(() => ({}));
+
+  if (!name || !email) return fail("Name and email are required.");
+
+  if (!["teacher", "student"].includes(role)) {
+    return fail("role must be teacher or student");
+  }
+
   const generated = !password;
   const finalPassword = password || genPassword();
-  const user = createUser({ name, email, password: finalPassword, role });
+
+  const user = await createUser({
+    name,
+    email,
+    password: finalPassword,
+    role,
+  });
+
   return ok({ user, tempPassword: generated ? finalPassword : undefined });
 });
 

@@ -1,14 +1,21 @@
+
 import Link from "next/link";
 import { listByRole, listClasses } from "@/lib/repo.js";
 import { StatCard } from "@/components/ui.js";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminDashboard() {
-  const teachers = listByRole("teacher");
-  const students = listByRole("student");
-  const classes = listClasses();
-  const subjectCount = classes.reduce((n, c) => n + (c.subject_count || 0), 0);
+export default async function AdminDashboard() {
+  const [teachers, students, classes] = await Promise.all([
+    listByRole("teacher"),
+    listByRole("student"),
+    listClasses(),
+  ]);
+
+  const subjectCount = classes.reduce(
+    (n, c) => n + (c.subject_count || 0),
+    0
+  );
 
   return (
     <div>
@@ -22,14 +29,14 @@ export default function AdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon="🧑‍🏫" label="Teachers" value={teachers.length} tint="bg-emerald-50 text-emerald-700" />
         <StatCard icon="🧑‍🎓" label="Students" value={students.length} tint="bg-sky-50 text-sky-700" />
-        <StatCard icon="🏫" label="Classes" value={classes.length} tint="bg-purple-50 text-purple-700" />
+        <StatCard icon="🗂️" label="Classes" value={classes.length} tint="bg-purple-50 text-purple-700" />
         <StatCard icon="📚" label="Subjects" value={subjectCount} tint="bg-amber-50 text-amber-700" />
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         <QuickLink href="/admin/teachers" icon="🧑‍🏫" title="Enroll a teacher" desc="Create teacher accounts by email." />
         <QuickLink href="/admin/students" icon="🧑‍🎓" title="Enroll a student" desc="Add students to the portal." />
-        <QuickLink href="/admin/classes" icon="🏫" title="Build a class" desc="Add subjects, assign teachers, enroll students." />
+        <QuickLink href="/admin/classes" icon="🗂️" title="Build a class" desc="Add subjects, assign teachers, enroll students." />
       </div>
     </div>
   );

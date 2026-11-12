@@ -1,3 +1,4 @@
+
 import { requireRole } from "@/lib/auth.js";
 import { ok, fail, handler } from "@/lib/http.js";
 import {
@@ -13,13 +14,20 @@ export const dynamic = "force-dynamic";
 export const GET = handler(async (_req, { params }) => {
   const s = requireRole("teacher");
   const subjectId = Number(params.id);
-  if (!subjectBelongsToTeacher(subjectId, s.id))
-    return fail("You don't teach this subject.", 403);
 
-  const subject = getSubjectFull(subjectId);
+  if (!(await subjectBelongsToTeacher(subjectId, s.id))) {
+    return fail("You don't teach this subject.", 403);
+  }
+
+  const subject = await getSubjectFull(subjectId);
+
+  if (!subject) {
+    return fail("Subject not found.", 404);
+  }
+
   return ok({
     subject,
-    students: studentsInClassWithGrades(subject.class_id),
-    notes: listNotesBySubject(subjectId),
+    students: await studentsInClassWithGrades(subject.class_id),
+    notes: await listNotesBySubject(subjectId),
   });
 });

@@ -1,23 +1,37 @@
-import fs from "node:fs";
 import { requireRole } from "@/lib/auth.js";
 import { ok, fail, handler } from "@/lib/http.js";
-import { getNote, subjectBelongsToTeacher, deleteNote } from "@/lib/repo.js";
+import {
+  getClassDetail,
+  deleteClass,
+  listByRole,
+  studentsNotEnrolled,
+} from "@/lib/repo.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const DELETE = handler(async (_req, { params }) => {
-  const s = requireRole("teacher");
-  const note = getNote(Number(params.id));
-  if (!note) return fail("Note not found", 404);
-  if (!subjectBelongsToTeacher(note.subject_id, s.id))
-    return fail("You don't own this note.", 403);
+export const GET = handler(async (_req, { params }) => {
+  requireRole("admin");
 
-  try {
-    if (note.stored_path && fs.existsSync(note.stored_path)) fs.unlinkSync(note.stored_path);
-  } catch {
-    /* ignore file cleanup errors */
-  }
-  deleteNote(note.id);
+  const id = Number(params.id);
+  const detail = await getClassDetail(id);
+
+  if (!detail) return fail("Class not found", 404);
+
+  const [teachers, availableStudents] = await Promise.all([
+    listByRole("teacher"),
+    studentsNotEnrolled(id),
+  ]);
+
+  return ok({
+    detail,
+    teachers,
+    availableStudents,
+  });
+});
+
+export const DELETE = handler(async (_req, { params }) => {
+  requireRole("admin");
+  await deleteClass(Number(params.id));
   return ok();
 });

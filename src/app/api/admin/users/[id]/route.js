@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 export const DELETE = handler(async (_req, { params }) => {
   requireRole("admin");
-  deleteUser(Number(params.id));
+
+  await deleteUser(Number(params.id));
+
   return ok();
 });
