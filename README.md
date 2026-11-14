@@ -87,7 +87,7 @@ EduBuddy consists of two main services:
           +------------+------------+
           |            |            |
           v            v            v
-       SQLite       Groq API     Gemini API
+       PostgreSQL       Groq API     Gemini API
        Database     AI Chat      Embeddings
           |
           |
@@ -113,7 +113,7 @@ Facial emotion recognition runs separately in the student's browser using face-a
 | Frontend | Next.js 14, React |
 | Backend | Next.js API Routes |
 | Programming Languages | JavaScript, Python |
-| Database | SQLite |
+| Database | PostgreSQL |
 | Authentication | JWT, bcrypt |
 | AI Chat | Groq API |
 | Speech Recognition | Whisper |
@@ -299,7 +299,7 @@ The web application can run without the ML service, but grade prediction and tex
 
 ## ☁️ Deployment Architecture
 
-EduBuddy currently uses a local-first architecture with SQLite and a separate Python ML service.
+EduBuddy currently uses a local-first architecture with PostgreSQl and a separate Python ML service.
 
 The planned cloud deployment includes:
 
@@ -312,8 +312,8 @@ The planned cloud deployment includes:
 
 **Important deployment considerations:**
 
-- Vercel's serverless filesystem is not suitable for persistent SQLite database storage.
-- SQLite should be replaced with a suitable hosted database or hosted separately.
+- Vercel's serverless filesystem is not suitable for persistent PostgreSQL database storage.
+- PostgreSQL should be replaced with a suitable hosted database or hosted separately.
 - The Python ML service must be deployed separately.
 - Uploaded files need persistent cloud storage.
 - Production environment variables must be configured securely.
